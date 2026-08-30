@@ -318,7 +318,7 @@ Run `npm test` — new tests fail until password module, Zod, and service update
 
 ---
 
-### Phase 4: API Routes — PLANNED
+### Phase 4: API Routes — COMPLETED
 
 **Objective:** Register, login, logout endpoints delegate to User Service.
 
@@ -363,8 +363,8 @@ Route handlers: parse JSON → Zod → User Service → map errors. No direct SQ
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1–4 Vitest tests pass
-- [ ] Register returns 201; login 401 on failure; logout 200 without cookies/tokens
+- [x] All Phase 1–4 Vitest tests pass
+- [x] Register returns 201; login 401 on failure; logout 200 without cookies/tokens
 - [ ] Manual smoke via `npm run preview` + curl for happy path
 
 ---
@@ -515,6 +515,6 @@ Sessions/cookies or JWT · auth middleware · password reset · email verificati
 ## Current Status
 
 **Last Updated:** August 30, 2026  
-**Current Phase:** Phase 4 — API Routes  
-**Status:** PLANNED (Phase 3 complete — awaiting review)  
-**Next Steps:** Review Phase 3; on approval, commit/push when directed; then begin Phase 4 TDD
+**Current Phase:** Phase 5 — Frontend & Integration  
+**Status:** PLANNED (Phase 4 complete — awaiting review)  
+**Next Steps:** Review Phase 4; on approval, commit/push when directed; manual API smoke on `npm run preview`; then begin Phase 5
