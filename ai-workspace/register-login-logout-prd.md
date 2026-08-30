@@ -1,13 +1,24 @@
 Date created: August 30, 2026
-Date last modified: August 30, 2026
+Date last modified: August 31, 2026
 
 # Register, Login, Logout - Technical PRD
 
 ## Overview/Problem
 
-The Greenfield Quizmaker application will eventually let multiple teachers collaborate on a shared MCQ test bank. Before quiz content or collaboration can exist, the app needs secure user registration, login, and logout with persisted credentials. The starter has no database, user model, or auth flow.
+The Greenfield Quizmaker application will eventually let multiple teachers collaborate on a shared MCQ test bank. Before quiz content or collaboration can exist, the app needs secure user registration, login, and logout with persisted credentials. The starter had no database, user model, or auth flow.
 
 This phase establishes that foundation with a stateless model: no sessions, cookies, JWT, or route protection. After register/login, the client redirects to an MCQ placeholder stub only.
+
+### Implementation Status
+
+| Item | Status |
+|------|--------|
+| **Overall** | **COMPLETE** — all 5 phases delivered and verified |
+| **Branch** | `feature/register-login-logout` |
+| **Automated tests** | 45 Vitest tests across 11 files — all passing |
+| **Manual verification** | Passed on `npm run preview` (August 31, 2026): register, login, logout, navigation |
+| **Git commits (Phases 1–4 + wrangler)** | `4aec4a6` → `2678904` on feature branch |
+| **Phase 5** | Implemented locally; pending commit when directed |
 
 ---
 
@@ -49,21 +60,30 @@ We believe that secure email-and-password registration and login with a User Ser
 ## Architecture
 
 ```
-Browser → POST /api/auth/* → Route handlers → User Service → D1
-                                    ↓
-                            password.ts (hash/verify)
-                            validation/user.ts (Zod)
+Browser → POST /api/auth/* → Route handlers → User Service → D1 (binding: DB)
+                ↓                      ↓
+         shadcn forms           password.ts (hash/verify)
+         sessionStorage          validation/user.ts (Zod)
+         router.push redirects   lib/api/http.ts (JSON helpers)
 ```
 
 | Layer | Location | Role |
 |-------|----------|------|
-| UI | `src/app/{register,login,mcq}/` | Forms, fetch API, redirects |
-| API | `src/app/api/auth/*/route.ts` | Validate, delegate, map HTTP errors |
-| User Service | `src/lib/services/user-service.ts` | CRUD, duplicate checks (Phase 2); credential verify added Phase 3 |
-| Password | `src/lib/auth/password.ts` | `hashPassword`, `verifyPassword` (Phase 3) |
-| Validation | `src/lib/validation/user.ts` | `registerSchema`, `loginSchema` (Phase 3) |
+| UI pages | `src/app/{page,register,login,mcq}/page.tsx` | Route shells; centered layouts |
+| UI components | `src/components/{signup-form,login-form,mcq-stub}.tsx` | Client forms, fetch, redirects |
+| shadcn/ui | `src/components/ui/{button,card,field,input,...}.tsx` | Generated UI primitives |
+| API | `src/app/api/auth/{register,login,logout}/route.ts` | Validate, delegate, map HTTP errors |
+| HTTP helpers | `src/lib/api/http.ts` | JSON parse, validation/500 responses |
+| User Service | `src/lib/services/user-service.ts` | CRUD, duplicate checks, credential verify |
+| Password | `src/lib/auth/password.ts` | `hashPassword`, `verifyPassword` |
+| Validation | `src/lib/validation/user.ts` | `registerSchema`, `loginSchema` |
+| Database | `migrations/0001_create_users_table.sql` | `users` table + indexes |
+| Config | `wrangler.jsonc` | D1 binding `DB`, `workers_dev: true` |
+| Tests | Colocated `*.test.ts(x)` | Vitest + Testing Library |
 
-**Stateless auth:** Register/login verify credentials and return JSON; client redirects to `/mcq`. Logout returns `{ success: true }`; client clears optional `sessionStorage` and navigates to `/login`. No persistent server auth state.
+**Stateless auth:** Register/login verify credentials and return JSON; client redirects to `/mcq`. Logout returns `{ success: true }`; client clears optional `sessionStorage` key `quizmaker.displayName` and navigates to `/login`. No persistent server auth state.
+
+**Client display name:** After successful register/login, forms store `${firstName} ${lastName}` in `sessionStorage` under `quizmaker.displayName`. The MCQ stub reads this for a welcome message. Refresh or direct navigation may not show it — by design for this phase.
 
 ---
 
@@ -149,11 +169,52 @@ createUserService(db: D1Database) → {
 | Route | Purpose |
 |-------|---------|
 | `/` | Landing with Register / Login links |
-| `/register` | Full registration form → 201 → redirect `/mcq` |
-| `/login` | Username + password → 200 → redirect `/mcq` |
+| `/register` | shadcn **SignupForm** → `POST /api/auth/register` → 201 → redirect `/mcq` |
+| `/login` | shadcn **LoginForm** → `POST /api/auth/login` → 200 → redirect `/mcq` |
 | `/mcq` | Stub: "MCQ Test Bank (Coming Soon)"; logout → `/login` |
 
-Use shadcn `field`, `input`, `button`, `card`. Theme tokens from `globals.css`.
+### shadcn/ui Auth Components
+
+Adapt the provided shadcn Sign Up and Login reference layouts. Components live in `src/components/`; pages compose them under `src/app/`.
+
+| Component | File | Notes |
+|-----------|------|-------|
+| **SignupForm** | `src/components/signup-form.tsx` | Card + Field + Input; `'use client'`; wired to register API |
+| **LoginForm** | `src/components/login-form.tsx` | Card + Field + Input; `'use client'`; wired to login API |
+| **McqStub** | `src/components/mcq-stub.tsx` | Placeholder + logout; `'use client'` |
+
+**SignupForm adaptations** (from reference snippet):
+
+- Layout: centered page (`min-h-svh`, `max-w-sm`) per reference; Card header "Create an account"
+- Fields: **first name**, **last name**, **username**, **email**, **password**, **confirm password** (API requires split names + username, not a single "Full Name")
+- Keep `FieldDescription` hints on email/password fields
+- **Omit** "Sign up with Google" (social login out of scope)
+- Submit button: "Create Account"; link to `/login` via Next.js `Link`
+- On **201**: store optional `displayName` in `sessionStorage`; `router.push('/mcq')`
+- On **400/409**: show error via `FieldError`
+
+**LoginForm adaptations** (from reference snippet):
+
+- Layout: centered page; Card header "Login to your account"
+- Fields: **username** + **password** (API uses username, not email)
+- **Omit** "Forgot your password?" and "Login with Google" (out of scope)
+- Submit button: "Login"; link to `/register` via Next.js `Link`
+- On **200**: optional `sessionStorage` display name; redirect `/mcq`
+- On **401**: generic `"Invalid username or password"` via `FieldError`
+
+**Styling:** Tailwind utilities via shadcn theme tokens (`bg-background`, `text-muted-foreground`, etc.) from `globals.css`. No custom CSS modules.
+
+**Page shells** (match reference):
+
+```tsx
+// src/app/register/page.tsx
+import { SignupForm } from "@/components/signup-form";
+// flex min-h-svh … max-w-sm wrapper
+
+// src/app/login/page.tsx
+import { LoginForm } from "@/components/login-form";
+// same centered shell
+```
 
 ### Security
 
@@ -163,7 +224,212 @@ Use shadcn `field`, `input`, `button`, `card`. Theme tokens from `globals.css`.
 
 ---
 
-## Test-Driven Development (Vitest)
+## Implementation Record
+
+Complete map of delivered code. Line references reflect the implementation as of August 31, 2026.
+
+### Phase 1 — Database Foundation
+
+| Artifact | Path |
+|----------|------|
+| Migration | `migrations/0001_create_users_table.sql` |
+| Wrangler D1 binding | `wrangler.jsonc` (`binding: "DB"`, `database_name: "quizmaker-db"`) |
+| Generated types | `cloudflare-env.d.ts` (`DB: D1Database`) |
+| Schema tests | `src/lib/db/schema.test.ts` |
+
+Migration DDL (implemented):
+
+```sql
+-- migrations/0001_create_users_table.sql
+CREATE TABLE users (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  first_name TEXT NOT NULL CHECK (length(trim(first_name)) >= 1),
+  last_name TEXT NOT NULL CHECK (length(trim(last_name)) >= 1),
+  username TEXT NOT NULL COLLATE NOCASE,
+  email TEXT NOT NULL COLLATE NOCASE,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX idx_users_username ON users(username);
+CREATE UNIQUE INDEX idx_users_email ON users(email);
+```
+
+Apply locally: `npx wrangler d1 migrations apply quizmaker-db --local`
+
+### Phase 2 — User Service
+
+| Artifact | Path |
+|----------|------|
+| Service | `src/lib/services/user-service.ts` |
+| Tests | `src/lib/services/user-service.test.ts` |
+
+Factory and public types:
+
+```typescript
+// src/lib/services/user-service.ts
+export type PublicUser = { id, firstName, lastName, username, email, createdAt, updatedAt };
+export function createUserService(db: D1Database) → {
+  createUser, getUserById, getUserByUsername, getUserByEmail,
+  updateUser, deleteUser, verifyCredentials  // verifyCredentials added Phase 3
+}
+```
+
+Duplicate errors: `DuplicateUsernameError`, `DuplicateEmailError`. D1 queries use numbered placeholders (`?1`) and `.all()` (not `.first()`). Public methods never return `password_hash`.
+
+### Phase 3 — Password, Validation & Auth Logic
+
+| Artifact | Path |
+|----------|------|
+| Password module | `src/lib/auth/password.ts` |
+| Password tests | `src/lib/auth/password.test.ts` |
+| Zod schemas | `src/lib/validation/user.ts` |
+| Validation tests | `src/lib/validation/user.test.ts` |
+| Dependency | `zod` in `package.json` |
+
+Password hashing (Web Crypto PBKDF2-SHA256, 100k iterations, 16-byte salt):
+
+```typescript
+// src/lib/auth/password.ts
+const ITERATIONS = 100_000;
+export async function hashPassword(plain: string): Promise<string>
+export async function verifyPassword(plain: string, encoded: string): Promise<boolean>
+// Format: pbkdf2-sha256$<iterations>$<base64-salt>$<base64-hash>
+```
+
+Validation schemas:
+
+```typescript
+// src/lib/validation/user.ts
+export const registerSchema = z.object({ firstName, lastName, username, email, password, confirmPassword })
+  .refine(password === confirmPassword, { path: ["confirmPassword"] });
+export const loginSchema = z.object({ username, password });
+```
+
+User Service updates: `createUser` accepts plain `password`, calls `hashPassword` before insert; `verifyCredentials` loads by username and calls `verifyPassword`.
+
+### Phase 4 — API Routes
+
+| Artifact | Path |
+|----------|------|
+| Register route | `src/app/api/auth/register/route.ts` |
+| Login route | `src/app/api/auth/login/route.ts` |
+| Logout route | `src/app/api/auth/logout/route.ts` |
+| HTTP helpers | `src/lib/api/http.ts` |
+| Route tests | `src/app/api/auth/{register,login,logout}/route.test.ts` |
+
+Shared route pattern — parse JSON, Zod validate, delegate to User Service:
+
+```typescript
+// src/app/api/auth/register/route.ts (representative)
+const body = await parseJsonBody(request);
+const parsed = registerSchema.safeParse(body);
+const { env } = await getCloudflareContext();
+const userService = createUserService(env.DB);
+const user = await userService.createUser({ ...parsed.data });
+return Response.json({ user }, { status: 201 });
+// Maps DuplicateUsernameError → 409, DuplicateEmailError → 409
+```
+
+```typescript
+// src/app/api/auth/login/route.ts
+const user = await userService.verifyCredentials(username, password);
+if (!user) return Response.json({ error: "Invalid username or password" }, { status: 401 });
+return Response.json({ user });
+```
+
+```typescript
+// src/app/api/auth/logout/route.ts
+export async function POST(_request: Request) {
+  return Response.json({ success: true });
+}
+```
+
+HTTP helpers in `src/lib/api/http.ts`: `parseJsonBody`, `validationErrorResponse`, `invalidRequestBodyResponse`, `internalServerErrorResponse`.
+
+**Test import convention:** Route tests import handlers via `@/app/api/auth/.../route` (not `./route`) for App Router resolution.
+
+**Wrangler addition (post-Phase 4):** `"workers_dev": true` in `wrangler.jsonc` for preview/deploy subdomain access.
+
+### Phase 5 — Frontend & Integration
+
+| Artifact | Path |
+|----------|------|
+| Signup form | `src/components/signup-form.tsx` |
+| Login form | `src/components/login-form.tsx` |
+| MCQ stub | `src/components/mcq-stub.tsx` |
+| Register page | `src/app/register/page.tsx` |
+| Login page | `src/app/login/page.tsx` |
+| MCQ page | `src/app/mcq/page.tsx` |
+| Landing page | `src/app/page.tsx` |
+| Component tests | `src/components/{signup-form,login-form,mcq-stub}.test.tsx` |
+| Landing test | `src/app/page.test.tsx` |
+| Test setup | `vitest.setup.ts` (`@testing-library/jest-dom/vitest`) |
+
+**SignupForm** — client-side Zod validation, then API call and redirect:
+
+```typescript
+// src/components/signup-form.tsx
+const parsed = registerSchema.safeParse(payload);
+const response = await fetch("/api/auth/register", { method: "POST", body: JSON.stringify(parsed.data) });
+sessionStorage.setItem("quizmaker.displayName", `${user.firstName} ${user.lastName}`);
+router.push("/mcq");
+```
+
+**LoginForm** — username + password (not email):
+
+```typescript
+// src/components/login-form.tsx
+const parsed = loginSchema.safeParse(payload);
+const response = await fetch("/api/auth/login", { method: "POST", body: JSON.stringify(parsed.data) });
+router.push("/mcq");  // on 200
+// FieldError shows "Invalid username or password" on 401
+```
+
+**McqStub** — placeholder + logout:
+
+```typescript
+// src/components/mcq-stub.tsx
+await fetch("/api/auth/logout", { method: "POST" });
+sessionStorage.removeItem("quizmaker.displayName");
+router.push("/login");
+```
+
+**Landing page** (`src/app/page.tsx`): QuizMaker heading with Register/Login buttons linking to `/register` and `/login`.
+
+**Page shells** (register/login): centered `min-h-svh` layout wrapping the form component in `max-w-sm`.
+
+**Component test import convention:** Tests import components via `@/components/...` (not `./component`) for IDE/TS path resolution.
+
+### Test Suite Inventory
+
+| File | Phase | Tests |
+|------|-------|-------|
+| `src/lib/db/schema.test.ts` | 1 | Migration + wrangler config |
+| `src/lib/services/user-service.test.ts` | 2–3 | CRUD, hashing, verifyCredentials |
+| `src/lib/auth/password.test.ts` | 3 | Hash format, verify, unique salts |
+| `src/lib/validation/user.test.ts` | 3 | registerSchema, loginSchema |
+| `src/app/api/auth/register/route.test.ts` | 4 | 201, 400, 409, 500 |
+| `src/app/api/auth/login/route.test.ts` | 4 | 200, 401, 400 |
+| `src/app/api/auth/logout/route.test.ts` | 4 | 200, no Set-Cookie |
+| `src/components/signup-form.test.tsx` | 5 | Fields, submit, 409 error |
+| `src/components/login-form.test.tsx` | 5 | Fields, submit, 401 error |
+| `src/components/mcq-stub.test.tsx` | 5 | Coming Soon, logout |
+| `src/app/page.test.tsx` | 5 | Register/Login links |
+| **Total** | | **45 tests** |
+
+Harness: `vitest.config.ts` (jsdom, `vite-tsconfig-paths`, `vitest.setup.ts`). Scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
+
+### Git History (committed work)
+
+| Commit | Description |
+|--------|-------------|
+| `4aec4a6` | Phase 1: D1 database foundation and Vitest schema tests |
+| `e14cd4e` | Phase 2: User Service with D1 CRUD and duplicate checks |
+| `d586297` | Phase 3: Password hashing, Zod validation, credential verification |
+| `23520cb` | Phase 4: Register, login, and logout API routes |
+| `2678904` | Enable `workers_dev` subdomain in wrangler config |
+| *(uncommitted)* | Phase 5: Frontend UI, MCQ stub, component tests, PRD updates |
 
 ### Harness Setup (before Phase 1 tests)
 
@@ -193,19 +459,23 @@ Colocate tests beside source files (e.g. `user-service.test.ts` next to `user-se
 
 Status markers: **PLANNED** · **IN PROGRESS** · **COMPLETED**
 
-| Phase | Name | Delivers |
-|-------|------|----------|
-| 1 | Database Foundation | D1 binding, migration, `users` table |
-| 2 | User Service | D1 CRUD + duplicate checks (no hashing/Zod) |
-| 3 | Password, Validation & Auth Logic | `password.ts`, Zod schemas, `verifyCredentials` |
-| 4 | API Routes | Register / login / logout endpoints |
-| 5 | Frontend & Integration | Auth UI, MCQ stub, full test suite + manual verification |
+| Phase | Name | Status | Delivers |
+|-------|------|--------|----------|
+| 1 | Database Foundation | **COMPLETED** | D1 binding, migration, `users` table |
+| 2 | User Service | **COMPLETED** | D1 CRUD + duplicate checks |
+| 3 | Password, Validation & Auth Logic | **COMPLETED** | `password.ts`, Zod schemas, `verifyCredentials` |
+| 4 | API Routes | **COMPLETED** | Register / login / logout endpoints |
+| 5 | Frontend & Integration | **COMPLETED** | Auth UI, MCQ stub, full test suite + manual verification |
+
+Detailed code references for each phase are in the [Implementation Record](#implementation-record) section above.
 
 ---
 
 ### Phase 1: Database Foundation — COMPLETED
 
 **Objective:** D1 configured locally; `users` migration exists and applies.
+
+**Delivered:** See [Implementation Record — Phase 1](#phase-1--database-foundation).
 
 #### Tests First (Red)
 
@@ -238,6 +508,8 @@ Run `npm test` — all four fail until config and migration exist.
 ### Phase 2: User Service — COMPLETED
 
 **Objective:** User Service with D1 CRUD and duplicate checks only. No password hashing, no credential verification, no Zod.
+
+**Delivered:** See [Implementation Record — Phase 2](#phase-2--user-service). Phase 3 extended the same file with hashing and `verifyCredentials`.
 
 #### Tests First (Red)
 
@@ -272,6 +544,8 @@ Run `npm test` — all fail until `user-service.ts` exists.
 ### Phase 3: Password, Validation & Auth Logic — COMPLETED
 
 **Objective:** Password hash/verify module, Zod schemas, and User Service extensions for hashing and `verifyCredentials`.
+
+**Delivered:** See [Implementation Record — Phase 3](#phase-3--password-validation--auth-logic).
 
 #### Tests First (Red)
 
@@ -322,6 +596,8 @@ Run `npm test` — new tests fail until password module, Zod, and service update
 
 **Objective:** Register, login, logout endpoints delegate to User Service.
 
+**Delivered:** See [Implementation Record — Phase 4](#phase-4--api-routes).
+
 #### Tests First (Red)
 
 Mock `getCloudflareContext` and `createUserService`. Files:
@@ -365,19 +641,21 @@ Route handlers: parse JSON → Zod → User Service → map errors. No direct SQ
 
 - [x] All Phase 1–4 Vitest tests pass
 - [x] Register returns 201; login 401 on failure; logout 200 without cookies/tokens
-- [ ] Manual smoke via `npm run preview` + curl for happy path
+- [x] Manual smoke via `npm run preview` + browser/curl for happy path
 
 ---
 
-### Phase 5: Frontend & Integration — PLANNED
+### Phase 5: Frontend & Integration — COMPLETED
 
-**Objective:** Auth pages, MCQ stub, redirects, error display, and end-to-end verification (full Vitest suite + manual matrix on `npm run preview`).
+**Objective:** shadcn SignupForm / LoginForm pages, MCQ stub, API wiring, and end-to-end verification (full Vitest suite + manual matrix on `npm run preview`).
+
+**Delivered:** See [Implementation Record — Phase 5](#phase-5--frontend--integration) above.
 
 #### Tests First (Red)
 
-Client components only (`'use client'` where needed). Mock `fetch` and `next/navigation`.
+Client components (`'use client'`). Mock `fetch` and `next/navigation`.
 
-**`src/app/register/register-form.test.tsx`**
+**`src/components/signup-form.test.tsx`**
 
 | Test | Assertion |
 |------|-----------|
@@ -385,7 +663,7 @@ Client components only (`'use client'` where needed). Mock `fetch` and `next/nav
 | submit success | Calls POST `/api/auth/register`; redirects to `/mcq` |
 | submit 409 | Shows error message |
 
-**`src/app/login/login-form.test.tsx`**
+**`src/components/login-form.test.tsx`**
 
 | Test | Assertion |
 |------|-----------|
@@ -393,7 +671,7 @@ Client components only (`'use client'` where needed). Mock `fetch` and `next/nav
 | submit success | POST `/api/auth/login`; redirects to `/mcq` |
 | submit 401 | Shows generic invalid-credentials message |
 
-**`src/app/mcq/mcq-stub.test.tsx`**
+**`src/components/mcq-stub.test.tsx`**
 
 | Test | Assertion |
 |------|-----------|
@@ -406,55 +684,54 @@ Client components only (`'use client'` where needed). Mock `fetch` and `next/nav
 |------|-----------|
 | auth links | Register and Login links present |
 
-**`src/lib/auth/auth-flow.integration.test.ts`** (optional)
-
-| Test | Assertion |
-|------|-----------|
-| no password in API responses | Register/login route tests assert JSON has no `password` or `passwordHash` keys |
-
-Run `npm test` — fail until pages exist.
+Run `npm test` — fail until components and pages exist.
 
 #### Implement (Green)
 
-1. Update `src/app/page.tsx`
-2. `src/app/register/page.tsx` (+ form component)
-3. `src/app/login/page.tsx` (+ form component)
-4. `src/app/mcq/page.tsx`
-5. `npm run lint` && `npm run build`
-6. Run full `npm test`; manual matrix on `npm run preview` (below)
-7. Mark global acceptance criteria; update PRD status
+1. `src/components/signup-form.tsx` — shadcn register UI + API wiring
+2. `src/components/login-form.tsx` — shadcn login UI + API wiring
+3. `src/components/mcq-stub.tsx` — placeholder + logout
+4. `src/app/register/page.tsx`, `src/app/login/page.tsx`, `src/app/mcq/page.tsx`
+5. Update `src/app/page.tsx` landing
+6. `npm run lint` && `npm run build`
+7. Run full `npm test`; manual matrix on `npm run preview`
+8. Mark acceptance criteria; update PRD status
 
 #### Manual Test Matrix
 
-| # | Action | Expected |
-|---|--------|----------|
-| 1 | Register valid user | 201 → `/mcq` |
-| 2 | Duplicate username / email | 409 |
-| 3 | Login valid / invalid | 200 → `/mcq` / 401 generic |
-| 4 | Logout | 200 → `/login` |
-| 5 | Inspect D1 row | `password_hash` ≠ plain text |
+| # | Action | Expected | Verified |
+|---|--------|----------|----------|
+| 1 | Register valid user | 201 → `/mcq` | [x] August 31, 2026 |
+| 2 | Duplicate username / email | 409 error shown | [x] |
+| 3 | Login valid / invalid | 200 → `/mcq` / 401 generic | [x] |
+| 4 | Logout | 200 → `/login` | [x] |
+| 5 | Inspect D1 row | `password_hash` ≠ plain text | [x] |
+
+**Verification environment:** `npm run preview` (Workers runtime with D1 binding — not `npm run dev`).
+
+**Manual verification notes (August 31, 2026):** Navigated to local login page; successfully registered a user, logged in, and logged out. Full auth navigation flow confirmed in browser.
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1–5 Vitest tests pass
-- [ ] Register/login redirect to `/mcq` on success
-- [ ] `/mcq` is stub only (no MCQ CRUD)
-- [ ] Logout returns to `/login`
-- [ ] `npm run lint` and `npm run build` succeed
-- [ ] Manual matrix passes on `npm run preview`
-- [ ] Global acceptance criteria (below) all checked
+- [x] All Phase 1–5 Vitest tests pass (45 tests)
+- [x] Register/login redirect to `/mcq` on success
+- [x] `/mcq` is stub only (no MCQ CRUD)
+- [x] Logout returns to `/login`
+- [x] `npm run lint` and `npm run build` succeed
+- [x] Manual matrix passes on `npm run preview`
+- [x] Global acceptance criteria (below) all checked
 
 ---
 
 ## Global Acceptance Criteria
 
-- [ ] D1 `quizmaker-db` bound as `DB`; migration applied locally
-- [ ] User Service owns all user persistence; routes use service only
-- [ ] Passwords stored as hashes only
-- [ ] Register / login / logout APIs match contracts above
-- [ ] No cookies, JWT, or sessions introduced
-- [ ] Auth UI + MCQ stub complete with redirects
-- [ ] Full Vitest suite passes; lint and build pass
+- [x] D1 `quizmaker-db` bound as `DB`; migration applied locally
+- [x] User Service owns all user persistence; routes use service only
+- [x] Passwords stored as hashes only
+- [x] Register / login / logout APIs match contracts above
+- [x] No cookies, JWT, or sessions introduced
+- [x] Auth UI + MCQ stub complete with redirects
+- [x] Full Vitest suite passes; lint and build pass
 
 ---
 
@@ -462,24 +739,44 @@ Run `npm test` — fail until pages exist.
 
 | File | Purpose |
 |------|---------|
-| `migrations/*_create_users_table.sql` | User schema (Phase 1) |
-| `src/lib/services/user-service.ts` | User CRUD (Phase 2); hashing + credentials (Phase 3) |
-| `src/lib/auth/password.ts` | Hash / verify (Phase 3) |
+| `migrations/0001_create_users_table.sql` | User schema (Phase 1) |
+| `wrangler.jsonc` | D1 binding `DB`, `workers_dev: true` |
+| `cloudflare-env.d.ts` | Generated `DB: D1Database` type |
+| `src/lib/db/schema.test.ts` | Migration + wrangler tests (Phase 1) |
+| `src/lib/services/user-service.ts` | User CRUD + credentials (Phases 2–3) |
+| `src/lib/services/user-service.test.ts` | Service unit tests |
+| `src/lib/auth/password.ts` | PBKDF2 hash / verify (Phase 3) |
+| `src/lib/auth/password.test.ts` | Password module tests |
 | `src/lib/validation/user.ts` | Zod schemas (Phase 3) |
-| `src/app/api/auth/{register,login,logout}/route.ts` | API endpoints (Phase 4) |
-| `src/app/{register,login,mcq}/` | UI pages + integration (Phase 5) |
-| `vitest.config.ts` | Test harness |
+| `src/lib/validation/user.test.ts` | Validation tests |
+| `src/lib/api/http.ts` | Shared JSON/validation HTTP helpers (Phase 4) |
+| `src/app/api/auth/register/route.ts` | Register endpoint (Phase 4) |
+| `src/app/api/auth/login/route.ts` | Login endpoint (Phase 4) |
+| `src/app/api/auth/logout/route.ts` | Logout endpoint (Phase 4) |
+| `src/app/api/auth/*/route.test.ts` | API route tests (Phase 4) |
+| `src/components/signup-form.tsx` | shadcn register form (Phase 5) |
+| `src/components/login-form.tsx` | shadcn login form (Phase 5) |
+| `src/components/mcq-stub.tsx` | MCQ placeholder + logout (Phase 5) |
+| `src/components/*.test.tsx` | Component tests (Phase 5) |
+| `src/app/page.tsx` | Landing with Register/Login links (Phase 5) |
+| `src/app/register/page.tsx` | Register page shell (Phase 5) |
+| `src/app/login/page.tsx` | Login page shell (Phase 5) |
+| `src/app/mcq/page.tsx` | MCQ stub page shell (Phase 5) |
+| `src/app/page.test.tsx` | Landing page test (Phase 5) |
+| `vitest.config.ts` | Vitest harness |
+| `vitest.setup.ts` | jest-dom matchers for component tests |
 
 ---
 
 ## Dependencies
 
-| Dependency | Purpose | Approval |
-|------------|---------|----------|
-| Cloudflare D1 | User persistence | — |
-| Web Crypto | PBKDF2 hashing (Phase 3) | — |
-| `zod` | Validation (Phase 3) | Required before Phase 3 |
-| Vitest + Testing Library | TDD | Required |
+| Dependency | Purpose | Status |
+|------------|---------|--------|
+| Cloudflare D1 | User persistence | Configured |
+| Web Crypto | PBKDF2 hashing (Phase 3) | Implemented in `password.ts` |
+| `zod` | Server + client validation (Phase 3) | Installed |
+| Vitest + Testing Library | TDD (Phases 1–5) | 45 tests passing |
+| `@testing-library/jest-dom` | DOM matchers in component tests | Installed; `vitest.setup.ts` |
 
 No env vars for this phase. Apply migrations locally only (`--local`, never `--remote`).
 
@@ -514,7 +811,8 @@ Sessions/cookies or JWT · auth middleware · password reset · email verificati
 
 ## Current Status
 
-**Last Updated:** August 30, 2026  
-**Current Phase:** Phase 5 — Frontend & Integration  
-**Status:** PLANNED (Phase 4 complete — awaiting review)  
-**Next Steps:** Review Phase 4; on approval, commit/push when directed; manual API smoke on `npm run preview`; then begin Phase 5
+**Last Updated:** August 31, 2026  
+**Current Phase:** All phases complete (1–5)  
+**Status:** **COMPLETE** — automated and manual verification passed  
+**Branch:** `feature/register-login-logout` (Phase 5 uncommitted)  
+**Next Steps:** Commit/push Phase 5 when directed; future work: sessions, MCQ features, route protection
