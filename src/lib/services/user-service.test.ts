@@ -6,6 +6,13 @@ import {
 	type CreateUserInput,
 } from "./user-service";
 
+vi.mock("@/lib/auth/password", () => ({
+	hashPassword: vi.fn(async (plain: string) => `pbkdf2-sha256$100000$salt$${plain}-hashed`),
+	verifyPassword: vi.fn(async (plain: string, hash: string) => hash.includes(`${plain}-hashed`)),
+}));
+
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+
 type UserRow = {
 	id: string;
 	first_name: string;
@@ -22,8 +29,10 @@ const sampleInput: CreateUserInput = {
 	lastName: "Doe",
 	username: "janedoe",
 	email: "Jane@Example.com",
-	passwordHash: "hashed-password-value",
+	password: "plain-password-123",
 };
+
+const storedHash = "pbkdf2-sha256$100000$salt$plain-password-123-hashed";
 
 const sampleRow: UserRow = {
 	id: "user-id-1",
@@ -31,7 +40,7 @@ const sampleRow: UserRow = {
 	last_name: "Doe",
 	username: "janedoe",
 	email: "jane@example.com",
-	password_hash: "hashed-password-value",
+	password_hash: storedHash,
 	created_at: "2026-08-30 00:00:00",
 	updated_at: "2026-08-30 00:00:00",
 };
@@ -56,7 +65,7 @@ describe("user service", () => {
 		vi.clearAllMocks();
 	});
 
-	it("createUser inserts row with supplied passwordHash and returns public user without hash", async () => {
+	it("createUser hashes plain password before insert and returns public user without hash", async () => {
 		const { db, all, bind, prepare } = createMockDb();
 
 		all
@@ -67,8 +76,7 @@ describe("user service", () => {
 		const service = createUserService(db);
 		const user = await service.createUser(sampleInput);
 
-		expect(prepare).toHaveBeenCalled();
-		expect(bind).toHaveBeenCalled();
+		expect(hashPassword).toHaveBeenCalledWith("plain-password-123");
 		expect(user).toEqual({
 			id: "user-id-1",
 			firstName: "Jane",
@@ -81,12 +89,15 @@ describe("user service", () => {
 		expect(user).not.toHaveProperty("passwordHash");
 		expect(user).not.toHaveProperty("password_hash");
 
+		const insertBindArgs = bind.mock.calls.find((args) => args.includes(storedHash));
+		expect(insertBindArgs).toBeDefined();
+		const plainTextInsert = bind.mock.calls.find((args) => args.includes("plain-password-123"));
+		expect(plainTextInsert).toBeUndefined();
+
 		const insertCall = prepare.mock.calls.find(([sql]) =>
 			String(sql).toLowerCase().includes("insert into users"),
 		);
 		expect(insertCall).toBeDefined();
-		const insertBindArgs = bind.mock.calls.find((args) => args.includes("hashed-password-value"));
-		expect(insertBindArgs).toBeDefined();
 	});
 
 	it("createUser rejects duplicate username", async () => {
@@ -150,7 +161,7 @@ describe("user service", () => {
 			email: "jane@example.com",
 			createdAt: "2026-08-30 00:00:00",
 			updatedAt: "2026-08-30 00:00:00",
-			passwordHash: "hashed-password-value",
+			passwordHash: storedHash,
 		});
 	});
 
@@ -170,6 +181,45 @@ describe("user service", () => {
 			updatedAt: "2026-08-30 00:00:00",
 		});
 		await expect(service.getUserByEmail("missing@example.com")).resolves.toBeNull();
+	});
+
+	it("verifyCredentials returns public user for valid credentials", async () => {
+		const { db, all } = createMockDb();
+		all.mockResolvedValueOnce({ results: [sampleRow] });
+
+		const service = createUserService(db);
+		const user = await service.verifyCredentials("janedoe", "plain-password-123");
+
+		expect(verifyPassword).toHaveBeenCalledWith("plain-password-123", storedHash);
+		expect(user).toEqual({
+			id: "user-id-1",
+			firstName: "Jane",
+			lastName: "Doe",
+			username: "janedoe",
+			email: "jane@example.com",
+			createdAt: "2026-08-30 00:00:00",
+			updatedAt: "2026-08-30 00:00:00",
+		});
+	});
+
+	it("verifyCredentials returns null for wrong password", async () => {
+		const { db, all } = createMockDb();
+		all.mockResolvedValueOnce({ results: [sampleRow] });
+
+		const service = createUserService(db);
+		const user = await service.verifyCredentials("janedoe", "wrong-password");
+
+		expect(user).toBeNull();
+	});
+
+	it("verifyCredentials returns null for unknown user", async () => {
+		const { db, all } = createMockDb();
+		all.mockResolvedValueOnce({ results: [] });
+
+		const service = createUserService(db);
+		const user = await service.verifyCredentials("unknown", "plain-password-123");
+
+		expect(user).toBeNull();
 	});
 
 	it("updateUser updates names and updated_at", async () => {

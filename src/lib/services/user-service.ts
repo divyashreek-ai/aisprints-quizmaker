@@ -1,3 +1,5 @@
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+
 export type PublicUser = {
 	id: string;
 	firstName: string;
@@ -17,7 +19,7 @@ export type CreateUserInput = {
 	lastName: string;
 	username: string;
 	email: string;
-	passwordHash: string;
+	password: string;
 };
 
 type UserRow = {
@@ -120,12 +122,14 @@ export function createUserService(db: D1Database) {
 				throw new DuplicateEmailError();
 			}
 
+			const passwordHash = await hashPassword(input.password);
+
 			await db
 				.prepare(
 					`INSERT INTO users (first_name, last_name, username, email, password_hash)
            VALUES (?1, ?2, ?3, ?4, ?5)`,
 				)
-				.bind(firstName, lastName, username, email, input.passwordHash)
+					.bind(firstName, lastName, username, email, passwordHash)
 				.run();
 
 			const created = await getUserRowByUsername(username);
@@ -196,6 +200,20 @@ export function createUserService(db: D1Database) {
 
 		async deleteUser(id: string): Promise<void> {
 			await db.prepare(`DELETE FROM users WHERE id = ?1`).bind(id).run();
+		},
+
+		async verifyCredentials(username: string, password: string): Promise<PublicUser | null> {
+			const row = await getUserRowByUsername(username);
+			if (!row) {
+				return null;
+			}
+
+			const valid = await verifyPassword(password, row.password_hash);
+			if (!valid) {
+				return null;
+			}
+
+			return toPublicUser(row);
 		},
 	};
 }

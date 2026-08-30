@@ -269,7 +269,7 @@ Run `npm test` — all fail until `user-service.ts` exists.
 
 ---
 
-### Phase 3: Password, Validation & Auth Logic — PLANNED
+### Phase 3: Password, Validation & Auth Logic — COMPLETED
 
 **Objective:** Password hash/verify module, Zod schemas, and User Service extensions for hashing and `verifyCredentials`.
 
@@ -312,9 +312,9 @@ Run `npm test` — new tests fail until password module, Zod, and service update
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1–3 Vitest tests pass
-- [ ] Passwords hashed before insert; never returned from service methods
-- [ ] `verifyCredentials` compares hash securely; returns `null` on failure
+- [x] All Phase 1–3 Vitest tests pass
+- [x] Passwords hashed before insert; never returned from service methods
+- [x] `verifyCredentials` compares hash securely; returns `null` on failure
 
 ---
 
@@ -515,6 +515,6 @@ Sessions/cookies or JWT · auth middleware · password reset · email verificati
 ## Current Status
 
 **Last Updated:** August 30, 2026  
-**Current Phase:** Phase 3 — Password, Validation & Auth Logic  
-**Status:** PLANNED (Phase 2 complete — awaiting review)  
-**Next Steps:** Review Phase 2; on approval, commit/push when directed; then begin Phase 3 TDD
+**Current Phase:** Phase 4 — API Routes  
+**Status:** PLANNED (Phase 3 complete — awaiting review)  
+**Next Steps:** Review Phase 3; on approval, commit/push when directed; then begin Phase 4 TDD
