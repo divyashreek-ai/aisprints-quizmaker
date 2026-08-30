@@ -235,7 +235,7 @@ Run `npm test` — all four fail until config and migration exist.
 
 ---
 
-### Phase 2: User Service — PLANNED
+### Phase 2: User Service — COMPLETED
 
 **Objective:** User Service with D1 CRUD and duplicate checks only. No password hashing, no credential verification, no Zod.
 
@@ -263,9 +263,9 @@ Run `npm test` — all fail until `user-service.ts` exists.
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1 + Phase 2 Vitest tests pass
-- [ ] User Service is sole D1 access point for user data
-- [ ] Public methods never return `password_hash`; no hashing or verify logic in service yet
+- [x] All Phase 1 + Phase 2 Vitest tests pass
+- [x] User Service is sole D1 access point for user data
+- [x] Public methods never return `password_hash`; no hashing or verify logic in service yet
 
 ---
 
@@ -515,6 +515,6 @@ Sessions/cookies or JWT · auth middleware · password reset · email verificati
 ## Current Status
 
 **Last Updated:** August 30, 2026  
-**Current Phase:** Phase 2 — User Service  
-**Status:** PLANNED (Phase 1 complete — awaiting review)  
-**Next Steps:** Review Phase 1; on approval, commit/push to feature branch and begin Phase 2 TDD
+**Current Phase:** Phase 3 — Password, Validation & Auth Logic  
+**Status:** PLANNED (Phase 2 complete — awaiting review)  
+**Next Steps:** Review Phase 2; on approval, commit/push when directed; then begin Phase 3 TDD
