@@ -13,10 +13,10 @@ This feature replaces the stub with a working MCQ workspace: a table listing all
 
 | Item | Status |
 |------|--------|
-| **Overall** | **IN PROGRESS** — Phase 1 complete |
-| **Branch** | `feature/register-login-logout` (MCQ work uncommitted) |
-| **Automated tests** | 50 Vitest tests passing (45 auth + 5 MCQ schema) |
-| **Current Phase** | Phase 2 — MCQ Service |
+| **Overall** | **IN PROGRESS** — Phase 2 complete |
+| **Branch** | `feature/mcq-crud` |
+| **Automated tests** | 62 Vitest tests passing (45 auth + 5 schema + 12 service) |
+| **Current Phase** | Phase 3 — Validation Schemas |
 
 ---
 
@@ -351,7 +351,7 @@ Status markers: **PLANNED** · **IN PROGRESS** · **COMPLETED**
 | Phase | Name | Status | Delivers |
 |-------|------|--------|----------|
 | 1 | Database Foundation | **COMPLETED** | Migration for `mcqs`, `mcq_choices`, `mcq_attempts` |
-| 2 | MCQ Service | **PLANNED** | D1 CRUD, choices, attempts |
+| 2 | MCQ Service | **COMPLETED** | D1 CRUD, choices, attempts |
 | 3 | Validation Schemas | **PLANNED** | Zod schemas + tests |
 | 4 | API Routes | **PLANNED** | REST endpoints for MCQs and attempts |
 | 5 | Frontend — List & Actions | **PLANNED** | Table, dropdown, delete, replace stub |
@@ -401,7 +401,7 @@ Run `npm test` — fail until migration exists.
 
 ---
 
-### Phase 2: MCQ Service — PLANNED
+### Phase 2: MCQ Service — COMPLETED
 
 **Objective:** MCQ Service with list, CRUD, choice management, and attempt recording. No routes or UI yet.
 
@@ -433,9 +433,17 @@ Also add: `src/lib/types/mcq.ts`
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1 + 2 Vitest tests pass
-- [ ] MCQ Service is sole D1 access point for MCQ data
-- [ ] Choices returned in stable `position` order
+- [x] All Phase 1 + 2 Vitest tests pass
+- [x] MCQ Service is sole D1 access point for MCQ data
+- [x] Choices returned in stable `position` order
+
+#### Delivered
+
+| Artifact | Path |
+|----------|------|
+| Types | `src/lib/types/mcq.ts` |
+| Service | `src/lib/services/mcq-service.ts` |
+| Tests | `src/lib/services/mcq-service.test.ts` |
 
 ---
 
@@ -678,6 +686,6 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated:** September 10, 2026  
-**Current Phase:** Phase 2 — MCQ Service  
+**Current Phase:** Phase 3 — Validation Schemas  
 **Status:** IN PROGRESS  
-**Next Steps:** Write `mcq-service.test.ts` (Red), then implement `mcq-service.ts` and `types/mcq.ts` (Green)
+**Next Steps:** Write `mcq.test.ts` (Red), then implement `validation/mcq.ts` (Green)
