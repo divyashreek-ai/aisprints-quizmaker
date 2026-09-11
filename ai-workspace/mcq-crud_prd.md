@@ -13,10 +13,10 @@ This feature replaces the stub with a working MCQ workspace: a table listing all
 
 | Item | Status |
 |------|--------|
-| **Overall** | **IN PROGRESS** — Phase 3 complete |
+| **Overall** | **IN PROGRESS** — Phase 4 complete |
 | **Branch** | `feature/mcq-crud` |
-| **Automated tests** | 69 Vitest tests passing (45 auth + 5 DB schema + 12 service + 7 validation) |
-| **Current Phase** | Phase 4 — API Routes |
+| **Automated tests** | 83 Vitest tests passing (45 auth + 5 DB schema + 12 service + 7 validation + 14 routes) |
+| **Current Phase** | Phase 5 — Frontend List & Actions |
 
 ---
 
@@ -353,7 +353,7 @@ Status markers: **PLANNED** · **IN PROGRESS** · **COMPLETED**
 | 1 | Database Foundation | **COMPLETED** | Migration for `mcqs`, `mcq_choices`, `mcq_attempts` |
 | 2 | MCQ Service | **COMPLETED** | D1 CRUD, choices, attempts |
 | 3 | Validation Schemas | **COMPLETED** | Zod schemas + tests |
-| 4 | API Routes | **PLANNED** | REST endpoints for MCQs and attempts |
+| 4 | API Routes | **COMPLETED** | REST endpoints for MCQs and attempts |
 | 5 | Frontend — List & Actions | **PLANNED** | Table, dropdown, delete, replace stub |
 | 6 | Frontend — Form, Preview & Integration | **PLANNED** | Create/edit form, preview, attempt flow, auth userId storage |
 
@@ -482,7 +482,7 @@ File: `src/lib/validation/mcq.test.ts`
 
 ---
 
-### Phase 4: API Routes — PLANNED
+### Phase 4: API Routes — COMPLETED
 
 **Objective:** REST endpoints delegating to MCQ Service.
 
@@ -506,8 +506,17 @@ Route pattern: parse JSON → Zod → MCQ Service → map errors. Reuse `src/lib
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1–4 Vitest tests pass
+- [x] All Phase 1–4 Vitest tests pass
 - [ ] Manual smoke via curl or browser against `npm run preview` for create/list/get
+
+#### Delivered
+
+| Artifact | Path |
+|----------|------|
+| List + create routes | `src/app/api/mcqs/route.ts` |
+| Get + update + delete routes | `src/app/api/mcqs/[id]/route.ts` |
+| Attempt route | `src/app/api/mcqs/[id]/attempts/route.ts` |
+| Route tests | `src/app/api/mcqs/**/*.test.ts` |
 
 ---
 
@@ -693,6 +702,6 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated:** September 11, 2026  
-**Current Phase:** Phase 4 — API Routes  
+**Current Phase:** Phase 5 — Frontend List & Actions  
 **Status:** IN PROGRESS  
-**Next Steps:** Write route tests (Red), then implement `/api/mcqs` endpoints (Green)
+**Next Steps:** Write `mcq-list.test.tsx` (Red), then replace MCQ stub with table + actions (Green)
