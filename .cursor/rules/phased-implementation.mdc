@@ -1,0 +1,54 @@
+---
+description: Phased PRD implementation workflow — one phase at a time, user approval before commit/push
+alwaysApply: true
+---
+
+# Phased Implementation Workflow
+
+This project delivers features in **phases** documented in technical PRDs under
+`ai-workspace/` (for example `mcq-crud_prd.md`, `register-login-logout-prd.md`).
+
+## One phase at a time
+
+- Read the PRD's **Implementation Phases** section before starting work.
+- Implement **only the current phase**. Do not jump ahead or batch multiple phases
+  unless the user explicitly asks.
+- Follow TDD per phase: write tests first (Red), implement (Green), verify acceptance
+  criteria, then stop and report.
+
+## User approval before git
+
+**Do not commit or push** phase work until the user has reviewed and approved it.
+
+After completing a phase:
+
+1. Run `npm test`, `npm run lint`, and `npm run build`; report the results.
+2. Summarize what was delivered (files, behavior, test count).
+3. **Stop and wait** for the user to review. Do not commit proactively.
+4. Commit and push **only when the user explicitly approves** (e.g. "looks good,
+   commit and push", "phase N is ok, commit through the same branch").
+
+## When the user approves a phase
+
+1. Commit on the **current feature branch** (do not switch branches unless asked).
+2. Use a commit message that names the phase and summarizes the why, matching
+   existing style: `Phase N: <short description>.`
+3. Push to `origin` on that branch (`git push` or `git push -u origin <branch>` if
+   the branch is new).
+4. Update the PRD: mark the phase **COMPLETED**, check acceptance criteria, add a
+   **Delivered** artifact table, and set **Current Phase** to the next phase.
+
+## Starting the next phase
+
+- Begin the next phase only after the previous phase is committed and pushed (or the
+  user explicitly says to proceed without committing).
+- If the user approves a phase and asks to continue in the same message, commit/push
+  first, then implement the next phase — still without committing the new phase until
+  reviewed.
+
+## Out of scope for this rule
+
+- Do not deploy (`npm run deploy`) unless explicitly asked.
+- Do not apply D1 migrations to remote databases.
+- General commits unrelated to phased PRDs still require explicit user request per
+  project git conventions.
