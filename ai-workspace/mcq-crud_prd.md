@@ -764,7 +764,7 @@ Complete map of delivered code on branch `feature/mcq-crud`.
 | `4543c69` | 4 | REST API routes for MCQs and attempts |
 | `a5313f6` | 5 | MCQ list table, row actions, delete dialog |
 | `4d6d6d9` | — | Cursor phased-implementation rule |
-| _(this commit)_ | 6 | Form, preview, auth userId storage, D1 runtime fixes |
+| `50dfaec` | 6 | Form, preview, auth userId storage, D1 runtime fixes |
 
 ### Phase 1 — Database Foundation
 
