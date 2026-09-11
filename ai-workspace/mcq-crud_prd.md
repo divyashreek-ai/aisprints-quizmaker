@@ -13,10 +13,10 @@ This feature replaces the stub with a working MCQ workspace: a table listing all
 
 | Item | Status |
 |------|--------|
-| **Overall** | **IN PROGRESS** — Phase 2 complete |
+| **Overall** | **IN PROGRESS** — Phase 3 complete |
 | **Branch** | `feature/mcq-crud` |
-| **Automated tests** | 62 Vitest tests passing (45 auth + 5 schema + 12 service) |
-| **Current Phase** | Phase 3 — Validation Schemas |
+| **Automated tests** | 69 Vitest tests passing (45 auth + 5 DB schema + 12 service + 7 validation) |
+| **Current Phase** | Phase 4 — API Routes |
 
 ---
 
@@ -352,7 +352,7 @@ Status markers: **PLANNED** · **IN PROGRESS** · **COMPLETED**
 |-------|------|--------|----------|
 | 1 | Database Foundation | **COMPLETED** | Migration for `mcqs`, `mcq_choices`, `mcq_attempts` |
 | 2 | MCQ Service | **COMPLETED** | D1 CRUD, choices, attempts |
-| 3 | Validation Schemas | **PLANNED** | Zod schemas + tests |
+| 3 | Validation Schemas | **COMPLETED** | Zod schemas + tests |
 | 4 | API Routes | **PLANNED** | REST endpoints for MCQs and attempts |
 | 5 | Frontend — List & Actions | **PLANNED** | Table, dropdown, delete, replace stub |
 | 6 | Frontend — Form, Preview & Integration | **PLANNED** | Create/edit form, preview, attempt flow, auth userId storage |
@@ -447,7 +447,7 @@ Also add: `src/lib/types/mcq.ts`
 
 ---
 
-### Phase 3: Validation Schemas — PLANNED
+### Phase 3: Validation Schemas — COMPLETED
 
 **Objective:** Zod schemas for create, update, and attempt payloads.
 
@@ -470,8 +470,15 @@ File: `src/lib/validation/mcq.test.ts`
 
 #### Phase Acceptance Criteria
 
-- [ ] All Phase 1–3 Vitest tests pass
-- [ ] Schemas exported for routes and optional client-side reuse
+- [x] All Phase 1–3 Vitest tests pass
+- [x] Schemas exported for routes and optional client-side reuse
+
+#### Delivered
+
+| Artifact | Path |
+|----------|------|
+| Validation schemas | `src/lib/validation/mcq.ts` |
+| Tests | `src/lib/validation/mcq.test.ts` |
 
 ---
 
@@ -685,7 +692,7 @@ When working with this PRD:
 
 ## Current Status
 
-**Last Updated:** September 10, 2026  
-**Current Phase:** Phase 3 — Validation Schemas  
+**Last Updated:** September 11, 2026  
+**Current Phase:** Phase 4 — API Routes  
 **Status:** IN PROGRESS  
-**Next Steps:** Write `mcq.test.ts` (Red), then implement `validation/mcq.ts` (Green)
+**Next Steps:** Write route tests (Red), then implement `/api/mcqs` endpoints (Green)
