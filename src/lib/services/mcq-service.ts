@@ -94,6 +94,11 @@ function validateChoices(choices: McqChoiceInput[]): void {
 	}
 }
 
+function generateId(): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(16));
+	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function createMcqService(db: D1Database) {
 	async function getMcqRowById(id: string): Promise<McqRow | null> {
 		const { results } = await db
@@ -123,16 +128,28 @@ export function createMcqService(db: D1Database) {
 	}
 
 	async function insertChoices(mcqId: string, choices: McqChoiceInput[]): Promise<void> {
-		const statements = choices.map((choice, position) =>
-			db
+		for (const [position, choice] of choices.entries()) {
+			await db
 				.prepare(
 					`INSERT INTO mcq_choices (mcq_id, choice_text, is_correct, position)
            VALUES (?1, ?2, ?3, ?4)`,
 				)
-				.bind(mcqId, normalizeText(choice.choiceText), choice.isCorrect ? 1 : 0, position),
-		);
+				.bind(mcqId, normalizeText(choice.choiceText), choice.isCorrect ? 1 : 0, position)
+				.run();
+		}
+	}
 
-		await db.batch(statements);
+	async function getMcqWithChoicesById(id: string): Promise<McqWithChoices | null> {
+		const row = await getMcqRowById(id);
+		if (!row) {
+			return null;
+		}
+
+		const choices = await getChoiceRowsByMcqId(id);
+		return {
+			...toMcqSummary(row),
+			choices: choices.map(toMcqChoice),
+		};
 	}
 
 	return {
@@ -149,16 +166,7 @@ export function createMcqService(db: D1Database) {
 		},
 
 		async getMcqById(id: string): Promise<McqWithChoices | null> {
-			const row = await getMcqRowById(id);
-			if (!row) {
-				return null;
-			}
-
-			const choices = await getChoiceRowsByMcqId(id);
-			return {
-				...toMcqSummary(row),
-				choices: choices.map(toMcqChoice),
-			};
+			return getMcqWithChoicesById(id);
 		},
 
 		async createMcq(input: CreateMcqInput): Promise<McqWithChoices> {
@@ -175,24 +183,19 @@ export function createMcqService(db: D1Database) {
 
 			const name = normalizeText(input.name);
 			const question = normalizeText(input.question);
+			const mcqId = generateId();
 
-			const { results: insertedMcqResults } = await db
+			await db
 				.prepare(
-					`INSERT INTO mcqs (name, question, created_by_user_id)
-           VALUES (?1, ?2, ?3)
-           RETURNING id`,
+					`INSERT INTO mcqs (id, name, question, created_by_user_id)
+           VALUES (?1, ?2, ?3, ?4)`,
 				)
-				.bind(name, question, input.createdByUserId)
-				.all<{ id: string }>();
-
-			const mcqId = insertedMcqResults[0]?.id;
-			if (!mcqId) {
-				throw new Error("Failed to create MCQ");
-			}
+				.bind(mcqId, name, question, input.createdByUserId)
+				.run();
 
 			await insertChoices(mcqId, input.choices);
 
-			const created = await this.getMcqById(mcqId);
+			const created = await getMcqWithChoicesById(mcqId);
 			if (!created) {
 				throw new Error("Failed to create MCQ");
 			}
@@ -225,7 +228,7 @@ export function createMcqService(db: D1Database) {
 			await db.prepare(`DELETE FROM mcq_choices WHERE mcq_id = ?1`).bind(id).run();
 			await insertChoices(id, input.choices);
 
-			return this.getMcqById(id);
+			return getMcqWithChoicesById(id);
 		},
 
 		async deleteMcq(id: string): Promise<boolean> {
@@ -253,13 +256,23 @@ export function createMcqService(db: D1Database) {
 				return null;
 			}
 
+			const attemptId = generateId();
+
+			await db
+				.prepare(
+					`INSERT INTO mcq_attempts (id, mcq_id, choice_id, is_correct)
+           VALUES (?1, ?2, ?3, ?4)`,
+				)
+				.bind(attemptId, mcqId, choiceId, choice.is_correct)
+				.run();
+
 			const { results: attemptResults } = await db
 				.prepare(
-					`INSERT INTO mcq_attempts (mcq_id, choice_id, is_correct)
-           VALUES (?1, ?2, ?3)
-           RETURNING id, mcq_id, choice_id, is_correct, created_at`,
+					`SELECT id, mcq_id, choice_id, is_correct, created_at
+           FROM mcq_attempts
+           WHERE id = ?1`,
 				)
-				.bind(mcqId, choiceId, choice.is_correct)
+				.bind(attemptId)
 				.all<AttemptRow>();
 
 			const attempt = attemptResults[0];

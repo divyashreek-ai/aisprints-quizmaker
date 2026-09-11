@@ -186,16 +186,14 @@ describe("mcq service", () => {
 	});
 
 	it("createMcq inserts MCQ and choices and returns full object", async () => {
-		const { db, all, run, batch } = createMockDb();
+		const { db, all, run } = createMockDb();
 
 		all
 			.mockResolvedValueOnce({ results: [{ id: "user-id-1" }] })
-			.mockResolvedValueOnce({ results: [{ id: "mcq-id-1" }] })
 			.mockResolvedValueOnce({ results: [mcqRow] })
 			.mockResolvedValueOnce({ results: choiceRows });
 
-		run.mockResolvedValueOnce({ success: true, meta: { changes: 1 } });
-		batch.mockResolvedValueOnce([]);
+		run.mockResolvedValue({ success: true, meta: { changes: 1 } });
 
 		const service = createMcqService(db);
 		const mcq = await service.createMcq(createInput);
@@ -206,7 +204,7 @@ describe("mcq service", () => {
 			String(sql).toLowerCase().includes("insert into mcqs"),
 		);
 		expect(insertMcqCall).toBeDefined();
-		expect(batch).toHaveBeenCalled();
+		expect(run).toHaveBeenCalled();
 	});
 
 	it("createMcq rejects when createdByUserId is missing from users", async () => {
@@ -243,7 +241,7 @@ describe("mcq service", () => {
 	});
 
 	it("updateMcq updates fields and replaces choices", async () => {
-		const { db, all, run, batch } = createMockDb();
+		const { db, all, run } = createMockDb();
 		const updatedRow: McqRow = {
 			...mcqRow,
 			name: updateInput.name,
@@ -264,7 +262,6 @@ describe("mcq service", () => {
 			.mockResolvedValueOnce({ results: updatedChoices });
 
 		run.mockResolvedValue({ success: true, meta: { changes: 1 } });
-		batch.mockResolvedValueOnce([]);
 
 		const service = createMcqService(db);
 		const mcq = await service.updateMcq("mcq-id-1", updateInput);
@@ -323,9 +320,9 @@ describe("mcq service", () => {
 			created_at: "2026-09-10 02:00:00",
 		};
 
-		all.mockResolvedValueOnce({ results: [choiceRows[0]] }).mockResolvedValueOnce({
-			results: [attemptRow],
-		});
+		all
+			.mockResolvedValueOnce({ results: [choiceRows[0]] })
+			.mockResolvedValueOnce({ results: [attemptRow] });
 		run.mockResolvedValueOnce({ success: true, meta: { changes: 1 } });
 
 		const service = createMcqService(db);

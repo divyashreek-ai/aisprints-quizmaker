@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { USER_ID_KEY } from "@/lib/auth/session";
 import { SignupForm } from "@/components/signup-form";
 
 const mockPush = vi.fn();
@@ -20,6 +21,7 @@ vi.mock("next/link", () => ({
 describe("SignupForm", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		sessionStorage.clear();
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
@@ -65,6 +67,7 @@ describe("SignupForm", () => {
 			expect(fetch).toHaveBeenCalledWith("/api/auth/register", expect.objectContaining({ method: "POST" }));
 		});
 		expect(mockPush).toHaveBeenCalledWith("/mcq");
+		expect(sessionStorage.getItem(USER_ID_KEY)).toBe("user-1");
 	});
 
 	it("shows an error message on 409 response", async () => {

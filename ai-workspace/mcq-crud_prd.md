@@ -1,5 +1,5 @@
 Date created: September 9, 2026
-Date last modified: September 9, 2026
+Date last modified: September 11, 2026
 
 # MCQ CRUD - Technical PRD
 
@@ -13,10 +13,11 @@ This feature replaces the stub with a working MCQ workspace: a table listing all
 
 | Item | Status |
 |------|--------|
-| **Overall** | **IN PROGRESS** — Phase 5 complete |
+| **Overall** | **COMPLETE** — all 6 phases delivered, reviewed, and committed |
 | **Branch** | `feature/mcq-crud` |
-| **Automated tests** | 88 Vitest tests passing (45 auth + 5 DB schema + 12 service + 7 validation + 14 routes + 7 list UI) |
-| **Current Phase** | Phase 6 — Form, Preview & Integration |
+| **Automated tests** | 98 Vitest tests passing |
+| **Current Phase** | All phases complete |
+| **Manual verification** | Create, edit, delete, and preview flows verified on `npm run preview` |
 
 ---
 
@@ -355,7 +356,7 @@ Status markers: **PLANNED** · **IN PROGRESS** · **COMPLETED**
 | 3 | Validation Schemas | **COMPLETED** | Zod schemas + tests |
 | 4 | API Routes | **COMPLETED** | REST endpoints for MCQs and attempts |
 | 5 | Frontend — List & Actions | **COMPLETED** | Table, dropdown, delete, replace stub |
-| 6 | Frontend — Form, Preview & Integration | **PLANNED** | Create/edit form, preview, attempt flow, auth userId storage |
+| 6 | Frontend — Form, Preview & Integration | **COMPLETED** | Create/edit form, preview, attempt flow, auth userId storage |
 
 **Do not start a phase until the previous phase's tests pass.** Each phase follows Red → Green TDD.
 
@@ -563,7 +564,7 @@ Removed: `src/components/mcq-stub.tsx`, `mcq-stub.test.tsx`
 
 ---
 
-### Phase 6: Frontend — Form, Preview & Integration — PLANNED
+### Phase 6: Frontend — Form, Preview & Integration — COMPLETED
 
 **Objective:** Create/edit form, preview with attempt submission, store `userId` on auth.
 
@@ -587,9 +588,24 @@ Removed: `src/components/mcq-stub.tsx`, `mcq-stub.test.tsx`
 
 #### Phase Acceptance Criteria
 
-- [ ] All Vitest tests pass (auth + MCQ)
-- [ ] `npm run lint` and `npm run build` succeed
-- [ ] Manual verification on `npm run preview`: full create → list → edit → preview → attempt → delete flow
+- [x] All Vitest tests pass (auth + MCQ)
+- [x] `npm run lint` and `npm run build` succeed
+- [x] Manual verification on `npm run preview`: full create → list → edit → preview → attempt → delete flow
+
+#### Delivered
+
+| Artifact | Path |
+|----------|------|
+| Create/edit form | `src/components/mcq-form.tsx` |
+| Form tests | `src/components/mcq-form.test.tsx` |
+| Preview component | `src/components/mcq-preview.tsx` |
+| Preview tests | `src/components/mcq-preview.test.tsx` |
+| New MCQ page | `src/app/mcq/new/page.tsx` |
+| Edit MCQ page | `src/app/mcq/[id]/edit/page.tsx` |
+| Preview page | `src/app/mcq/[id]/preview/page.tsx` |
+| Session helpers | `src/lib/auth/session.ts` |
+| Auth userId storage | `signup-form.tsx`, `login-form.tsx` |
+| shadcn UI | `textarea.tsx`, `checkbox.tsx` |
 
 ---
 
@@ -630,13 +646,13 @@ Mock D1 and `@opennextjs/cloudflare` in unit tests. Colocate tests beside source
 
 ## Acceptance Criteria
 
-- [ ] Teachers see an MCQ table at `/mcq` instead of "Coming Soon"
-- [ ] Teachers can create an MCQ with 2–6 choices and exactly one correct answer
-- [ ] Teachers can edit and delete MCQs from the list actions menu
-- [ ] Teachers can preview a question and submit an answer; attempt is stored in `mcq_attempts`
-- [ ] All MCQ data persists in D1 across preview server restarts
-- [ ] `npm test`, `npm run lint`, and `npm run build` pass
-- [ ] No plain-text passwords or direct SQL in route handlers
+- [x] Teachers see an MCQ table at `/mcq` instead of "Coming Soon"
+- [x] Teachers can create an MCQ with 2–6 choices and exactly one correct answer
+- [x] Teachers can edit and delete MCQs from the list actions menu
+- [x] Teachers can preview a question and submit an answer; attempt is stored in `mcq_attempts`
+- [x] All MCQ data persists in D1 across preview server restarts
+- [x] `npm test`, `npm run lint`, and `npm run build` pass
+- [x] No plain-text passwords or direct SQL in route handlers
 
 ---
 
@@ -692,7 +708,143 @@ Mock D1 and `@opennextjs/cloudflare` in unit tests. Colocate tests beside source
 
 ## Troubleshooting Guide
 
-_(Populate during implementation.)_
+### `POST /api/mcqs` returns 500 on `npm run preview`
+
+**Symptom:** List and register work; creating an MCQ fails with 500.
+
+**Cause:** Local D1 schema drift — an older experimental migration used `sort_order` on `mcq_choices`, but the committed migration and service code use `position`.
+
+**Fix (preserve data):**
+
+```bash
+npx wrangler d1 execute quizmaker-db --local --command "ALTER TABLE mcq_choices RENAME COLUMN sort_order TO position;"
+```
+
+**Fix (clean slate):** Delete `.wrangler/state/v3/d1`, then re-apply migrations:
+
+```bash
+npx wrangler d1 migrations apply quizmaker-db --local
+```
+
+Verify schema: `npx wrangler d1 execute quizmaker-db --local --command "PRAGMA table_info(mcq_choices);"`
+
+### Base UI console warning: `nativeButton` expected `<button>`
+
+**Symptom:** Console error when using `Button` with `render={<Link />}`.
+
+**Fix:** Add `nativeButton={false}` when the render target is a Next.js `Link` (renders `<a>`). See `src/app/page.tsx` and `src/components/mcq-list.tsx`.
+
+### `EBUSY` during `npm run preview` on Windows
+
+**Symptom:** `EBUSY: resource busy or locked, rmdir '.open-next\assets'`.
+
+**Fix:** Stop the running preview server (`Ctrl+C`) before rebuilding. OpenNext on Windows can lock the output directory while wrangler is serving.
+
+### D1 patterns for Cloudflare Workers runtime
+
+The MCQ service avoids patterns that are unreliable in the Workers D1 runtime:
+
+- No `INSERT ... RETURNING` — generate IDs with `crypto.getRandomValues()`, insert, then re-query
+- No `db.batch()` for choice inserts — use sequential `.run()` calls
+- Use `all()` and read `results[0]` instead of `.first()`
+
+---
+
+## Implementation Record
+
+Complete map of delivered code on branch `feature/mcq-crud`.
+
+### Commits (chronological)
+
+| Commit | Phase | Summary |
+|--------|-------|---------|
+| `18f5463` | 1 | MCQ database migration and schema tests |
+| `c5ee32c` | 2 | MCQ service with D1 CRUD and attempt recording |
+| `28ae54f` | 3 | Zod validation schemas for MCQ payloads |
+| `4543c69` | 4 | REST API routes for MCQs and attempts |
+| `a5313f6` | 5 | MCQ list table, row actions, delete dialog |
+| `4d6d6d9` | — | Cursor phased-implementation rule |
+| _(this commit)_ | 6 | Form, preview, auth userId storage, D1 runtime fixes |
+
+### Phase 1 — Database Foundation
+
+| Artifact | Path |
+|----------|------|
+| Migration | `migrations/0002_create_mcq_tables.sql` |
+| Schema tests | `src/lib/db/mcq-schema.test.ts` |
+
+Applied locally: `npx wrangler d1 migrations apply quizmaker-db --local`
+
+### Phase 2 — MCQ Service
+
+| Artifact | Path |
+|----------|------|
+| Types | `src/lib/types/mcq.ts` |
+| Service | `src/lib/services/mcq-service.ts` |
+| Tests | `src/lib/services/mcq-service.test.ts` |
+
+Service factory: `createMcqService(db)` with `listMcqs`, `getMcqById`, `createMcq`, `updateMcq`, `deleteMcq`, `recordAttempt`.
+
+### Phase 3 — Validation Schemas
+
+| Artifact | Path |
+|----------|------|
+| Schemas | `src/lib/validation/mcq.ts` |
+| Tests | `src/lib/validation/mcq.test.ts` |
+
+Exports: `createMcqSchema`, `updateMcqSchema`, `attemptSchema`, `choiceSchema`.
+
+### Phase 4 — API Routes
+
+| Artifact | Path |
+|----------|------|
+| List + create | `src/app/api/mcqs/route.ts` |
+| Get + update + delete | `src/app/api/mcqs/[id]/route.ts` |
+| Record attempt | `src/app/api/mcqs/[id]/attempts/route.ts` |
+| Route tests | `src/app/api/mcqs/**/*.test.ts` |
+
+### Phase 5 — Frontend List & Actions
+
+| Artifact | Path |
+|----------|------|
+| List component | `src/components/mcq-list.tsx` |
+| List tests | `src/components/mcq-list.test.tsx` |
+| Page | `src/app/mcq/page.tsx` |
+| Dropdown menu | `src/components/ui/dropdown-menu.tsx` |
+
+Removed: `src/components/mcq-stub.tsx`, `mcq-stub.test.tsx`.
+
+### Phase 6 — Form, Preview & Integration
+
+| Artifact | Path |
+|----------|------|
+| Create/edit form | `src/components/mcq-form.tsx` |
+| Form tests | `src/components/mcq-form.test.tsx` |
+| Preview component | `src/components/mcq-preview.tsx` |
+| Preview tests | `src/components/mcq-preview.test.tsx` |
+| New MCQ page | `src/app/mcq/new/page.tsx` |
+| Edit MCQ page | `src/app/mcq/[id]/edit/page.tsx` |
+| Preview page | `src/app/mcq/[id]/preview/page.tsx` |
+| Session helpers | `src/lib/auth/session.ts` |
+| Auth userId storage | `signup-form.tsx`, `login-form.tsx`, `mcq-list.tsx` (logout clears `USER_ID_KEY`) |
+| shadcn UI | `textarea.tsx`, `checkbox.tsx` |
+
+### End-to-end flow delivered
+
+1. **Register / login** — `sessionStorage` stores `quizmaker.displayName` and `quizmaker.userId`
+2. **List** (`/mcq`) — table of MCQs, Create button, row ⋮ menu (Edit, Preview, Delete), logout
+3. **Create** (`/mcq/new`) — form with 2–6 choices, exactly one correct; `POST /api/mcqs`
+4. **Edit** (`/mcq/[id]/edit`) — pre-filled form; `PUT /api/mcqs/[id]`
+5. **Preview** (`/mcq/[id]/preview`) — select answer, submit attempt, see correct/incorrect
+6. **Delete** — confirm dialog; `DELETE /api/mcqs/[id]`; cascade removes choices and attempts
+
+### TDD workflow used per phase
+
+1. **Red** — write Vitest tests; confirm they fail
+2. **Green** — implement minimum code; all tests pass
+3. **Verify** — `npm test`, `npm run lint`, `npm run build`
+4. **Review** — user approval before commit (per `.cursor/rules/phased-implementation.mdc`)
+5. **Commit** — one commit per phase on `feature/mcq-crud`
 
 ---
 
@@ -713,6 +865,6 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated:** September 11, 2026  
-**Current Phase:** Phase 6 — Form, Preview & Integration  
-**Status:** IN PROGRESS  
-**Next Steps:** Write `mcq-form.test.tsx` and `mcq-preview.test.tsx` (Red), then implement create/edit/preview pages (Green)
+**Current Phase:** All phases complete  
+**Status:** COMPLETED — reviewed, tested, and committed on `feature/mcq-crud`  
+**Next Steps:** Merge `feature/mcq-crud` into main when ready

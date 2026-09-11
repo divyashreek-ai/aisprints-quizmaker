@@ -34,9 +34,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { DISPLAY_NAME_KEY, USER_ID_KEY } from "@/lib/auth/session";
 import type { McqSummary } from "@/lib/types/mcq";
-
-const DISPLAY_NAME_KEY = "quizmaker.displayName";
 
 function getStoredDisplayName(): string | null {
 	if (typeof window === "undefined") {
@@ -118,6 +117,7 @@ export function McqList() {
 		try {
 			await fetch("/api/auth/logout", { method: "POST" });
 			sessionStorage.removeItem(DISPLAY_NAME_KEY);
+			sessionStorage.removeItem(USER_ID_KEY);
 			router.push("/login");
 		} catch {
 			setIsLoggingOut(false);
@@ -160,7 +160,9 @@ export function McqList() {
 					</CardDescription>
 				</div>
 				<div className="flex shrink-0 gap-2">
-					<Button render={<Link href="/mcq/new" />}>Create MCQ</Button>
+					<Button render={<Link href="/mcq/new" />} nativeButton={false}>
+						Create MCQ
+					</Button>
 					<Button
 						type="button"
 						variant="outline"
@@ -179,7 +181,9 @@ export function McqList() {
 				) : mcqs.length === 0 ? (
 					<div className="flex flex-col items-start gap-4">
 						<p className="text-muted-foreground">No MCQs yet. Create your first question to get started.</p>
-						<Button render={<Link href="/mcq/new" />}>Create MCQ</Button>
+						<Button render={<Link href="/mcq/new" />} nativeButton={false}>
+							Create MCQ
+						</Button>
 					</div>
 				) : (
 					<Table>

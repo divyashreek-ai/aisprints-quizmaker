@@ -20,9 +20,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { DISPLAY_NAME_KEY, USER_ID_KEY } from "@/lib/auth/session";
 import { loginSchema } from "@/lib/validation/user";
-
-const DISPLAY_NAME_KEY = "quizmaker.displayName";
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
 	const router = useRouter();
@@ -56,7 +55,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
 			const data = (await response.json()) as {
 				error?: string;
-				user?: { firstName: string; lastName: string };
+				user?: { id: string; firstName: string; lastName: string };
 			};
 
 			if (!response.ok) {
@@ -69,6 +68,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 					DISPLAY_NAME_KEY,
 					`${data.user.firstName} ${data.user.lastName}`.trim(),
 				);
+				sessionStorage.setItem(USER_ID_KEY, data.user.id);
 			}
 
 			router.push("/mcq");

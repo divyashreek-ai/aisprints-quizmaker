@@ -19,9 +19,8 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DISPLAY_NAME_KEY, USER_ID_KEY } from "@/lib/auth/session";
 import { registerSchema } from "@/lib/validation/user";
-
-const DISPLAY_NAME_KEY = "quizmaker.displayName";
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 	const router = useRouter();
@@ -60,7 +59,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 			const data = (await response.json()) as {
 				error?: string;
 				details?: Array<{ message: string }>;
-				user?: { firstName: string; lastName: string };
+				user?: { id: string; firstName: string; lastName: string };
 			};
 
 			if (!response.ok) {
@@ -77,6 +76,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 					DISPLAY_NAME_KEY,
 					`${data.user.firstName} ${data.user.lastName}`.trim(),
 				);
+				sessionStorage.setItem(USER_ID_KEY, data.user.id);
 			}
 
 			router.push("/mcq");
