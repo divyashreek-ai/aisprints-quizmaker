@@ -810,7 +810,7 @@ Complete map of delivered code on branch `feature/mcq-crud`.
 | `4d6d6d9` | — | Cursor phased-implementation rule |
 | `50dfaec` | 6 | Form, preview, auth userId storage, D1 runtime fixes |
 | `6e13784` | docs | Record Phase 6 commit hash in PRD |
-| _(follow-up)_ | fix | Edit-with-attempts FK fix + migration `0003`; PRD troubleshooting |
+| `c171429` | fix | Edit-with-attempts FK fix + migration `0003`; PRD troubleshooting |
 
 ### Phase 1 — Database Foundation
 
