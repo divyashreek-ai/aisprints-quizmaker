@@ -225,6 +225,9 @@ export function createMcqService(db: D1Database) {
 				.bind(name, question, id)
 				.run();
 
+			// Attempts reference choice_id; clear them before replacing choices so
+			// updates succeed even when the FK lacks ON DELETE CASCADE.
+			await db.prepare(`DELETE FROM mcq_attempts WHERE mcq_id = ?1`).bind(id).run();
 			await db.prepare(`DELETE FROM mcq_choices WHERE mcq_id = ?1`).bind(id).run();
 			await insertChoices(id, input.choices);
 

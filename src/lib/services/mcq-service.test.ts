@@ -268,10 +268,16 @@ describe("mcq service", () => {
 
 		expect(mcq).toEqual(toMcqWithChoices(updatedRow, updatedChoices));
 
-		const deleteChoicesCall = vi.mocked(db.prepare).mock.calls.find(([sql]) =>
-			String(sql).toLowerCase().includes("delete from mcq_choices"),
+		const prepareSql = vi.mocked(db.prepare).mock.calls.map(([sql]) => String(sql).toLowerCase());
+		const deleteAttemptsIndex = prepareSql.findIndex((sql) =>
+			sql.includes("delete from mcq_attempts"),
 		);
-		expect(deleteChoicesCall).toBeDefined();
+		const deleteChoicesIndex = prepareSql.findIndex((sql) =>
+			sql.includes("delete from mcq_choices"),
+		);
+		expect(deleteAttemptsIndex).toBeGreaterThanOrEqual(0);
+		expect(deleteChoicesIndex).toBeGreaterThanOrEqual(0);
+		expect(deleteAttemptsIndex).toBeLessThan(deleteChoicesIndex);
 	});
 
 	it("updateMcq returns null when not found", async () => {

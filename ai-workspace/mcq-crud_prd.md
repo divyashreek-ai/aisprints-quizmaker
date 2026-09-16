@@ -1,5 +1,5 @@
 Date created: September 9, 2026
-Date last modified: September 11, 2026
+Date last modified: September 16, 2026
 
 # MCQ CRUD - Technical PRD
 
@@ -13,11 +13,11 @@ This feature replaces the stub with a working MCQ workspace: a table listing all
 
 | Item | Status |
 |------|--------|
-| **Overall** | **COMPLETE** — all 6 phases delivered, reviewed, and committed |
+| **Overall** | **COMPLETE** — all 6 phases delivered; post-ship edit + local-dev fixes applied |
 | **Branch** | `feature/mcq-crud` |
 | **Automated tests** | 98 Vitest tests passing |
 | **Current Phase** | All phases complete |
-| **Manual verification** | Create, edit, delete, and preview flows verified on `npm run preview` |
+| **Manual verification** | Create, edit (incl. previously previewed MCQs), delete, preview, register/login on `npm run preview` and `npm run dev` |
 
 ---
 
@@ -708,6 +708,50 @@ Mock D1 and `@opennextjs/cloudflare` in unit tests. Colocate tests beside source
 
 ## Troubleshooting Guide
 
+### `PUT /api/mcqs/[id]` returns 500 when editing older MCQs
+
+**Symptom:** Save on edit fails with 500 for MCQs that were previewed (had attempts); newly created MCQs without attempts edit fine.
+
+**Cause:** `updateMcq` replaced choices with `DELETE FROM mcq_choices`, but `mcq_attempts.choice_id` FK (migration `0002`) had no `ON DELETE CASCADE`, so SQLite rejected the delete when attempts existed.
+
+**Steps followed to diagnose and fix:**
+
+1. Confirmed list/get worked; failure only on `PUT` for older MCQs
+2. Inspected local D1: attempts existed for previewed MCQs; FK on `choice_id` lacked cascade in `0002`
+3. Reproduced: deleting choices while attempts referenced them fails under foreign keys
+4. Updated `updateMcq` to `DELETE FROM mcq_attempts WHERE mcq_id = ?1` before deleting/replacing choices
+5. Added migration `0003_cascade_attempt_choice_delete.sql` to recreate `mcq_attempts` with `ON DELETE CASCADE` on `choice_id`
+6. Applied locally: `npx wrangler d1 migrations apply quizmaker-db --local`
+7. Extended service test to assert attempts are deleted before choices
+8. Manually verified edit+save on previously previewed MCQs
+
+**Note:** Saving an edit clears that MCQ’s prior preview attempts (old choice IDs no longer exist).
+
+### `POST /api/auth/register` or `/api/auth/login` returns 404 on `npm run dev`
+
+**Symptom:** `/register` and `/login` pages load; form submit shows “Something went wrong”; terminal logs `POST /api/auth/* 404`. Meanwhile `POST /api/mcqs` may still work.
+
+**Cause:** Corrupted Next.js Turbopack cache under `.next` — typed routes / route table omitted auth handlers (e.g. `AppRouteHandlerRoutes` only listed `/api/mcqs`). HTML 404 body then failed JSON parse in the form.
+
+**Steps followed to diagnose and fix:**
+
+1. Confirmed route files exist under `src/app/api/auth/**/route.ts`
+2. Compared: `/api/mcqs` returned JSON; `/api/auth/register` returned HTML 404
+3. Inspected `.next/dev/types/routes.d.ts` — corrupted / incomplete (auth handlers missing)
+4. Deleted `.next`, stopped all `next`/`npm run dev` processes, restarted `npm run dev`
+5. Verified clean routes list includes `/api/auth/login|register|logout`
+6. Verified register returns 201 on local Node server
+
+**Recovery:**
+
+```bash
+# Stop every next/dev process, then:
+Remove-Item -Recurse -Force .next
+npm run dev
+```
+
+Avoid running `next build` and `next dev` against the same `.next` tree at the same time on Windows.
+
 ### `POST /api/mcqs` returns 500 on `npm run preview`
 
 **Symptom:** List and register work; creating an MCQ fails with 500.
@@ -765,6 +809,8 @@ Complete map of delivered code on branch `feature/mcq-crud`.
 | `a5313f6` | 5 | MCQ list table, row actions, delete dialog |
 | `4d6d6d9` | — | Cursor phased-implementation rule |
 | `50dfaec` | 6 | Form, preview, auth userId storage, D1 runtime fixes |
+| `6e13784` | docs | Record Phase 6 commit hash in PRD |
+| _(follow-up)_ | fix | Edit-with-attempts FK fix + migration `0003`; PRD troubleshooting |
 
 ### Phase 1 — Database Foundation
 
@@ -784,6 +830,8 @@ Applied locally: `npx wrangler d1 migrations apply quizmaker-db --local`
 | Tests | `src/lib/services/mcq-service.test.ts` |
 
 Service factory: `createMcqService(db)` with `listMcqs`, `getMcqById`, `createMcq`, `updateMcq`, `deleteMcq`, `recordAttempt`.
+
+**Post-Phase 6 update:** `updateMcq` deletes attempts for the MCQ before replacing choices so edits succeed after preview.
 
 ### Phase 3 — Validation Schemas
 
@@ -846,6 +894,19 @@ Removed: `src/components/mcq-stub.tsx`, `mcq-stub.test.tsx`.
 4. **Review** — user approval before commit (per `.cursor/rules/phased-implementation.mdc`)
 5. **Commit** — one commit per phase on `feature/mcq-crud`
 
+### Post-completion bugfixes (September 16, 2026)
+
+| Issue | Resolution |
+|-------|------------|
+| Edit 500 after preview | Delete attempts before choice replace; migration `0003_cascade_attempt_choice_delete.sql` |
+| Auth 404 on `npm run dev` | Clear corrupted `.next` cache; restart single `next` process |
+
+| Artifact | Path |
+|----------|------|
+| Cascade migration | `migrations/0003_cascade_attempt_choice_delete.sql` |
+| Service update | `src/lib/services/mcq-service.ts` (`updateMcq`) |
+| Service tests | `src/lib/services/mcq-service.test.ts` |
+
 ---
 
 ## Notes for AI Agents
@@ -864,7 +925,7 @@ When working with this PRD:
 
 ## Current Status
 
-**Last Updated:** September 11, 2026  
+**Last Updated:** September 16, 2026  
 **Current Phase:** All phases complete  
-**Status:** COMPLETED — reviewed, tested, and committed on `feature/mcq-crud`  
+**Status:** COMPLETED — Phase 6 + post-ship edit/local-dev fixes on `feature/mcq-crud`  
 **Next Steps:** Merge `feature/mcq-crud` into main when ready
